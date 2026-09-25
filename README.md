@@ -4,9 +4,9 @@
 
 ## Status
 
-- The web interface is published at [agentpact-wine.vercel.app](https://agentpact-wine.vercel.app/) as a Bradbury testnet frontend. Without a Bradbury contract address it displays **illustrative sample jobs** and disables fund-moving actions.
-- The Intelligent Contract was deployed in GenLayer Studio (Studionet, chain ID 61999) at [`0x4E046c60D373d0bf5e2a772F2Ee4EbD3b333D9Ea`](https://explorer-studio.genlayer.com/address/0x4E046c60D373d0bf5e2a772F2Ee4EbD3b333D9Ea). Its `job_count` read returned 0. This address is **not** a Bradbury address and cannot be connected to the published frontend.
-- The product is experimental; only test GEN should be used. Bradbury deployment and an end-to-end funded settlement remain unverified. See [deployment record](docs/DEPLOYMENT.md).
+- The web interface is published at [agentpact-wine.vercel.app](https://agentpact-wine.vercel.app/) and connects to the deployed Studionet contract. It reads finalized contract state; the showcase jobs are clearly marked as illustrative.
+- The Intelligent Contract was deployed in GenLayer Studio (Studionet, chain ID 61999) at [`0x4E046c60D373d0bf5e2a772F2Ee4EbD3b333D9Ea`](https://explorer-studio.genlayer.com/address/0x4E046c60D373d0bf5e2a772F2Ee4EbD3b333D9Ea). Its `job_count` read returned 0.
+- Hosted Studio does **not support native GEN transfers to or from contracts**. Funded job creation, escrow payout, and refunds are unavailable in this environment, so web writes are disabled. The funded lifecycle has not been verified. See [deployment record](docs/DEPLOYMENT.md).
 
 ## Contract lifecycle
 
@@ -33,7 +33,7 @@ npm run dev
 npm run build
 ```
 
-Set `VITE_CONTRACT_ADDRESS` to a deployed Bradbury contract address at build time, or enter the address in **Contract setup** on the site. The latter stays in your browser's local storage. The frontend reads finalized state and signs through an EIP-1193 wallet. It estimates transaction fees and waits for finalization before showing a write as complete.
+The default Studionet contract address is included in the build. Set `VITE_CONTRACT_ADDRESS` to another **Studionet** address at build time, or enter one in **Contract setup**. The latter stays in your browser's local storage. The frontend reads finalized state. Web writes stay disabled because hosted Studio lacks native GEN transfers.
 
 ## Contract tests and deployment
 
@@ -47,7 +47,7 @@ genlayer network set testnet-bradbury
 genlayer deploy --contract contracts/agentpact.py
 ```
 
-Never commit wallet keys. Once deployed on Bradbury, verify the actual address and at least one full funded lifecycle before setting `VITE_CONTRACT_ADDRESS` in Vercel. Read [evidence specification](docs/EVIDENCE.md) for the accepted URL and hash format.
+Never commit wallet keys. If moving to a network supporting token transfers later, verify at least one full funded lifecycle before enabling web writes there. Read [evidence specification](docs/EVIDENCE.md) for the accepted URL and hash format.
 
 ## Architecture
 

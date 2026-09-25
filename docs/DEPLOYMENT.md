@@ -13,8 +13,8 @@
 
 [Inspect the contract in Studio Explorer](https://explorer-studio.genlayer.com/address/0x4E046c60D373d0bf5e2a772F2Ee4EbD3b333D9Ea).
 
-This is a Studio deployment for contract execution validation. The Studio account had 0 GEN, so a funded job, validator adjudication, appeal, and payout have **not** been exercised onchain. Studio's interface also warns that its environment does not support token transfers. This address must not be entered into the Bradbury-only web interface.
+The published web interface uses this Studionet address for finalized reads. The production marketplace successfully read `job_count = 0` through `genlayer-js` 1.1.8 on September 25, 2026. The Studio account had 0 GEN, so a funded job, validator adjudication, appeal, and payout have **not** been exercised onchain. Hosted Studio does not support native token transfers to and from contracts. The web interface disables all writes for this reason.
 
 ## Bradbury
 
-The contract is not deployed to Bradbury yet. The published frontend intentionally shows sample jobs and disables escrow writes. Before activating it: deploy with a funded Bradbury wallet, run a funded job lifecycle including a pinned evidence fetch and settlement, then set `VITE_CONTRACT_ADDRESS` for the production build. Record the final address and transaction here.
+The contract is not deployed to Bradbury. This project targets Studionet for its present contract deployment and live reads. A network with native transfers will be required to exercise the full escrow lifecycle.
