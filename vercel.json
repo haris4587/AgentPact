@@ -1,0 +1,1 @@
+{"version":2,"buildCommand":"cd web && npm ci && npm run build","outputDirectory":"web/dist","rewrites":[{"source":"/(.*)","destination":"/index.html"}]}
