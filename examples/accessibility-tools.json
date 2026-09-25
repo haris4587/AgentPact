@@ -1,0 +1,16 @@
+{
+  "title": "Comparison of two accessibility testing tools",
+  "tools": [
+    {
+      "name": "axe-core",
+      "type": "Automated accessibility testing library",
+      "official_source": "https://github.com/dequelabs/axe-core"
+    },
+    {
+      "name": "Lighthouse",
+      "type": "Website auditing tool with an accessibility category",
+      "official_source": "https://developer.chrome.com/docs/lighthouse/overview/"
+    }
+  ],
+  "comparison": "axe-core checks accessibility rules in development and testing workflows. Lighthouse audits webpages across categories including accessibility."
+}
