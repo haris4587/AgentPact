@@ -124,8 +124,6 @@ class AgentPactStudio(gl.Contract):
 
         def fetch():
             response = gl.nondet.web.get(url)
-            if response.status_code != 200:
-                raise gl.vm.UserError("Evidence fetch failed")
             body = response.body
             if len(body) > 24576:
                 raise gl.vm.UserError("Evidence exceeds 24 KiB")
