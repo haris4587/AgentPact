@@ -37,6 +37,7 @@ class Web:
 
 
 class VM:
+    UserError = ValueError
     class Return:
         def __init__(self, calldata):
             self.calldata = calldata
@@ -63,9 +64,14 @@ def model(monkeypatch):
     write = lambda f: f
     public = types.SimpleNamespace(write=write, view=write)
     public.write.payable = write  # function attrs support the decorator chain
+    transfers = []
+    def interface(cls):
+        cls.__init__ = lambda self, address: setattr(self, 'address', address)
+        cls.emit_transfer = lambda self, value: transfers.append((self.address, value))
+        return cls
     gl = types.SimpleNamespace(
         Contract=object, public=public, message=msg,
-        evm=types.SimpleNamespace(contract_interface=write),
+        evm=types.SimpleNamespace(contract_interface=interface),
         nondet=types.SimpleNamespace(web=web, exec_prompt=prompt),
         eq_principle=types.SimpleNamespace(strict_eq=lambda fn: fn()), vm=VM(),
     )
@@ -75,11 +81,11 @@ def model(monkeypatch):
     spec = importlib.util.spec_from_file_location('agentpact_model', SOURCE)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module, msg, web, prompt
+    return module, msg, web, prompt, transfers
 
 
 def create(model):
-    module, msg, _, _ = model
+    module, msg, _, _, _ = model
     contract = module.AgentPact()
     msg.value = 10**18
     contract.create_job('Research brief', 'Research three analytics products',
@@ -90,7 +96,7 @@ def create(model):
 
 
 def test_url_and_criterion_guardrails(model):
-    module, _, _, _ = model
+    module, _, _, _, _ = model
     assert module.pinned_url(URL)
     assert not module.pinned_url(URL.replace(SHA, 'main'))
     assert not module.pinned_url(URL.replace('raw.githubusercontent.com', 'evil.example'))
@@ -101,7 +107,7 @@ def test_url_and_criterion_guardrails(model):
 
 
 def test_create_accept_and_submission_permissions(model):
-    _, msg, _, _ = model
+    _, msg, _, _, _ = model
     contract = create(model)
     job = json.loads(contract.get_job(0))
     assert job['reward_wei'] == str(10**18)
@@ -118,7 +124,7 @@ def test_create_accept_and_submission_permissions(model):
 
 
 def test_mismatched_bytes_cannot_be_adjudicated(model):
-    _, msg, web, _ = model
+    _, msg, web, _, _ = model
     contract = create(model)
     msg.sender_address = '0x' + '2' * 40
     contract.accept_job(0)
@@ -135,7 +141,7 @@ def test_mismatched_bytes_cannot_be_adjudicated(model):
 
 
 def test_appeal_is_one_round_and_party_only(model):
-    _, msg, _, prompt = model
+    _, msg, _, prompt, _ = model
     contract = create(model)
     msg.sender_address = '0x' + '2' * 40
     contract.accept_job(0)
@@ -150,3 +156,37 @@ def test_appeal_is_one_round_and_party_only(model):
     assert json.loads(contract.get_job(0))['payout_bps'] == 10000
     with pytest.raises(ValueError, match='No appeal available'):
         contract.appeal(0)
+
+
+def test_settlement_sends_proportional_shares_once(model):
+    _, msg, _, _, transfers = model
+    contract = create(model)
+    buyer = msg.sender_address
+    worker = '0x' + '2' * 40
+    msg.sender_address = worker
+    contract.accept_job(0)
+    contract.submit_evidence(0, URL, DIGEST)
+    contract.adjudicate(0)
+    with pytest.raises(ValueError, match='Settlement not available'):
+        contract.settle(0)
+    job = json.loads(contract.get_job(0))
+    job['challenge_until'] = int(time.time()) - 1
+    contract.jobs[0] = json.dumps(job)
+    contract.settle(0)
+    assert transfers == [(worker, 5 * 10**17), (buyer, 5 * 10**17)]
+    assert contract.locked[0] == 0
+    with pytest.raises(ValueError, match='Settlement not available'):
+        contract.settle(0)
+
+
+def test_expiry_refunds_buyer(model):
+    _, msg, _, _, transfers = model
+    contract = create(model)
+    buyer = msg.sender_address
+    job = json.loads(contract.get_job(0))
+    job['deadline'] = int(time.time()) - 1
+    contract.jobs[0] = json.dumps(job)
+    contract.refund_expired(0)
+    assert transfers == [(buyer, 10**18)]
+    assert json.loads(contract.get_job(0))['status'] == 'REFUNDED'
+    assert contract.locked[0] == 0

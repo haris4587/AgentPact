@@ -30,9 +30,9 @@ def pinned_url(url: str) -> bool:
 def validate_criteria(criteria: str) -> list:
     data = json.loads(criteria)
     if not isinstance(data, list) or not 1 <= len(data) <= 8:
-        raise ValueError("Provide 1–8 criteria")
+        raise gl.vm.UserError("Provide 1–8 criteria")
     if any(not isinstance(item, str) or not 8 <= len(item) <= 250 for item in data):
-        raise ValueError("Each criterion must be 8–250 characters")
+        raise gl.vm.UserError("Each criterion must be 8–250 characters")
     return data
 
 
@@ -59,7 +59,7 @@ class AgentPact(gl.Contract):
 
     def _job(self, job_id: u256) -> dict:
         if job_id >= self.count:
-            raise ValueError("Unknown job")
+            raise gl.vm.UserError("Unknown job")
         return json.loads(self.jobs[job_id])
 
     @gl.public.view
@@ -74,17 +74,17 @@ class AgentPact(gl.Contract):
     def create_job(self, title: str, brief: str, criteria_json: str,
                    repo: str, deadline: u256, challenge_seconds: u256) -> None:
         if not 5 <= len(title) <= 100 or not 20 <= len(brief) <= 1500:
-            raise ValueError("Title or brief length invalid")
+            raise gl.vm.UserError("Title or brief length invalid")
         criteria = validate_criteria(criteria_json)
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
-            raise ValueError("Invalid owner/repo")
+            raise gl.vm.UserError("Invalid owner/repo")
         now = int(time.time())
         if not now + 3600 <= int(deadline) <= now + 90 * 86400:
-            raise ValueError("Deadline must be 1 hour to 90 days away")
+            raise gl.vm.UserError("Deadline must be 1 hour to 90 days away")
         if not 3600 <= int(challenge_seconds) <= 7 * 86400:
-            raise ValueError("Challenge window must be 1 hour to 7 days")
+            raise gl.vm.UserError("Challenge window must be 1 hour to 7 days")
         if gl.message.value == u256(0):
-            raise ValueError("Fund the escrow")
+            raise gl.vm.UserError("Fund the escrow")
         job_id = self.count
         job = {"id": int(job_id), "buyer": str(gl.message.sender_address),
                "worker": "", "title": title, "brief": brief, "criteria": criteria,
@@ -101,9 +101,9 @@ class AgentPact(gl.Contract):
     def accept_job(self, job_id: u256) -> None:
         job = self._job(job_id)
         if job["status"] != "OPEN" or time.time() >= job["deadline"]:
-            raise ValueError("Job unavailable")
+            raise gl.vm.UserError("Job unavailable")
         if str(gl.message.sender_address) == job["buyer"]:
-            raise ValueError("Buyer cannot accept own job")
+            raise gl.vm.UserError("Buyer cannot accept own job")
         job["worker"] = str(gl.message.sender_address)
         job["status"] = "ACCEPTED"
         self.jobs[job_id] = json.dumps(job)
@@ -112,17 +112,17 @@ class AgentPact(gl.Contract):
     def submit_evidence(self, job_id: u256, url: str, sha256_hex: str) -> None:
         job = self._job(job_id)
         if job["status"] != "ACCEPTED" or str(gl.message.sender_address) != job["worker"]:
-            raise ValueError("Only assigned worker can submit")
+            raise gl.vm.UserError("Only assigned worker can submit")
         if time.time() > job["deadline"]:
-            raise ValueError("Deadline expired")
+            raise gl.vm.UserError("Deadline expired")
         if not pinned_url(url) or not url.lower().startswith(
                 "https://raw.githubusercontent.com/" + job["repo"] + "/"):
-            raise ValueError("Use a JSON file at a pinned commit in the allowed repo")
+            raise gl.vm.UserError("Use a JSON file at a pinned commit in the allowed repo")
         if not re.fullmatch(r"[0-9a-f]{64}", sha256_hex):
-            raise ValueError("SHA-256 must be 64 lowercase hexadecimal characters")
+            raise gl.vm.UserError("SHA-256 must be 64 lowercase hexadecimal characters")
         evidence_key = url.lower() + "#" + sha256_hex
         if self.evidence_hashes.get(evidence_key, False):
-            raise ValueError("Evidence already used")
+            raise gl.vm.UserError("Evidence already used")
         self.evidence_hashes[evidence_key] = True
         job["evidence_url"] = url
         job["evidence_sha256"] = sha256_hex
@@ -137,15 +137,15 @@ class AgentPact(gl.Contract):
         def fetch():
             response = gl.nondet.web.get(url)
             if response.status_code != 200:
-                raise ValueError("Evidence fetch failed")
+                raise gl.vm.UserError("Evidence fetch failed")
             body = response.body
             if len(body) > 24576:
-                raise ValueError("Evidence exceeds 24 KiB")
+                raise gl.vm.UserError("Evidence exceeds 24 KiB")
             if hashlib.sha256(body).hexdigest() != expected_hash:
-                raise ValueError("Evidence hash mismatch")
+                raise gl.vm.UserError("Evidence hash mismatch")
             document = json.loads(body.decode("utf-8"))
             if not isinstance(document, dict):
-                raise ValueError("Evidence must be a JSON object")
+                raise gl.vm.UserError("Evidence must be a JSON object")
             return body.decode("utf-8")
 
         # Validators independently fetch the exact pinned bytes. A mismatch aborts.
@@ -162,7 +162,7 @@ class AgentPact(gl.Contract):
         def judge():
             result = gl.nondet.exec_prompt(prompt, response_format="json")
             if not valid_assessment(result, len(criteria)):
-                raise ValueError("Invalid assessment shape")
+                raise gl.vm.UserError("Invalid assessment shape")
             return result
 
         def validate(leader_result):
@@ -180,7 +180,7 @@ class AgentPact(gl.Contract):
     def adjudicate(self, job_id: u256) -> None:
         job = self._job(job_id)
         if job["status"] != "SUBMITTED":
-            raise ValueError("Evidence not submitted")
+            raise gl.vm.UserError("Evidence not submitted")
         result = self._assess(job)
         job["passes"] = result["passes"]
         job["reasons"] = result["reasons"]
@@ -193,11 +193,11 @@ class AgentPact(gl.Contract):
     def appeal(self, job_id: u256) -> None:
         job = self._job(job_id)
         if job["status"] != "PROVISIONAL" or job["appealed"]:
-            raise ValueError("No appeal available")
+            raise gl.vm.UserError("No appeal available")
         if time.time() > job["challenge_until"]:
-            raise ValueError("Challenge window closed")
+            raise gl.vm.UserError("Challenge window closed")
         if str(gl.message.sender_address) not in (job["buyer"], job["worker"]):
-            raise ValueError("Only a party can appeal")
+            raise gl.vm.UserError("Only a party can appeal")
         result = self._assess(job)
         job["passes"] = result["passes"]
         job["reasons"] = result["reasons"]
@@ -210,7 +210,7 @@ class AgentPact(gl.Contract):
     def settle(self, job_id: u256) -> None:
         job = self._job(job_id)
         if job["status"] != "PROVISIONAL" or time.time() <= job["challenge_until"]:
-            raise ValueError("Settlement not available yet")
+            raise gl.vm.UserError("Settlement not available yet")
         amount = self.locked[job_id]
         worker_share = amount * u256(job["payout_bps"]) // u256(10000)
         buyer_share = amount - worker_share
@@ -227,7 +227,7 @@ class AgentPact(gl.Contract):
     def refund_expired(self, job_id: u256) -> None:
         job = self._job(job_id)
         if job["status"] not in ("OPEN", "ACCEPTED") or time.time() <= job["deadline"]:
-            raise ValueError("Refund not available")
+            raise gl.vm.UserError("Refund not available")
         amount = self.locked[job_id]
         self.locked[job_id] = u256(0)
         job["status"] = "REFUNDED"
