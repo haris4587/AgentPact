@@ -4,9 +4,9 @@
 
 ## Status
 
-- The web interface is published as a Bradbury testnet frontend. Without a deployed contract address it displays **illustrative sample jobs** and disables fund-moving actions.
-- The Intelligent Contract is source code in `contracts/agentpact.py`. No onchain address is implied by the web deployment.
-- The product is experimental; only test GEN should be used. Testnet contract deployment and an end-to-end funded settlement should be completed before public use.
+- The web interface is published at [agentpact-wine.vercel.app](https://agentpact-wine.vercel.app/) as a Bradbury testnet frontend. Without a Bradbury contract address it displays **illustrative sample jobs** and disables fund-moving actions.
+- The Intelligent Contract was deployed in GenLayer Studio (Studionet, chain ID 61999) at [`0x4E046c60D373d0bf5e2a772F2Ee4EbD3b333D9Ea`](https://explorer-studio.genlayer.com/address/0x4E046c60D373d0bf5e2a772F2Ee4EbD3b333D9Ea). Its `job_count` read returned 0. This address is **not** a Bradbury address and cannot be connected to the published frontend.
+- The product is experimental; only test GEN should be used. Bradbury deployment and an end-to-end funded settlement remain unverified. See [deployment record](docs/DEPLOYMENT.md).
 
 ## Contract lifecycle
 
@@ -47,7 +47,7 @@ genlayer network set testnet-bradbury
 genlayer deploy --contract contracts/agentpact.py
 ```
 
-Never commit wallet keys. Once deployed, verify the actual address and at least one full funded lifecycle before setting `VITE_CONTRACT_ADDRESS` in Vercel. Read [evidence specification](docs/EVIDENCE.md) for the accepted URL and hash format.
+Never commit wallet keys. Once deployed on Bradbury, verify the actual address and at least one full funded lifecycle before setting `VITE_CONTRACT_ADDRESS` in Vercel. Read [evidence specification](docs/EVIDENCE.md) for the accepted URL and hash format.
 
 ## Architecture
 

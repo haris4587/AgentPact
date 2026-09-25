@@ -87,6 +87,7 @@ def model(monkeypatch):
 def create(model):
     module, msg, _, _, _ = model
     contract = module.AgentPact()
+    contract.jobs, contract.locked, contract.evidence_hashes = TreeMap(), TreeMap(), TreeMap()
     msg.value = 10**18
     contract.create_job('Research brief', 'Research three analytics products',
                         json.dumps(['Supply three references', 'Explain tradeoffs clearly']),

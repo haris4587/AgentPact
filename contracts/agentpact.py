@@ -52,9 +52,6 @@ class AgentPact(gl.Contract):
     count: u256
 
     def __init__(self):
-        self.jobs = TreeMap()
-        self.locked = TreeMap()
-        self.evidence_hashes = TreeMap()
         self.count = u256(0)
 
     def _job(self, job_id: u256) -> dict:
